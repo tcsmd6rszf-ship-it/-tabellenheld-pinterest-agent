@@ -1,88 +1,58 @@
-import os
 import json
-import requests
 from pathlib import Path
 
-PINTEREST_API = "https://api.pinterest.com/v5"
 
-ACCESS_TOKEN = os.environ.get("PINTEREST_ACCESS_TOKEN")
-BOARD_ID = os.environ.get("PINTEREST_BOARD_ID")
+PRODUCT_FILE = Path("products.json")
+HISTORY_FILE = Path("pin_history.json")
 
 
 def load_products():
-    file = Path("products.json")
-
-    if not file.exists():
-        print("FEHLER: products.json wurde nicht gefunden.")
+    if not PRODUCT_FILE.exists():
+        print("Keine products.json gefunden.")
         return []
 
-    with open(file, "r", encoding="utf-8") as f:
-        return json.load(f)
+    with open(PRODUCT_FILE, "r", encoding="utf-8") as file:
+        return json.load(file)
 
 
-def create_pin(product):
-    if not ACCESS_TOKEN:
-        raise RuntimeError("PINTEREST_ACCESS_TOKEN fehlt.")
+def load_history():
+    if not HISTORY_FILE.exists():
+        return []
 
-    if not BOARD_ID:
-        raise RuntimeError("PINTEREST_BOARD_ID fehlt.")
+    with open(HISTORY_FILE, "r", encoding="utf-8") as file:
+        return json.load(file)
 
-    title = product["title"]
-    description = product["description"]
-    shop_url = product["shop_url"]
-    image_url = product["image_url"]
 
-    payload = {
-        "title": title[:100],
-        "description": description[:800],
-        "link": shop_url,
-        "board_id": BOARD_ID,
-        "media_source": {
-            "source_type": "image_url",
-            "url": image_url,
-            "is_standard": True
-        }
-    }
-
-    response = requests.post(
-        f"{PINTEREST_API}/pins",
-        headers={
-            "Authorization": f"Bearer {ACCESS_TOKEN}",
-            "Content-Type": "application/json"
-        },
-        json=payload,
-        timeout=60
-    )
-
-    if response.status_code not in (200, 201):
-        print("Pinterest-Fehler:")
-        print(response.status_code)
-        print(response.text)
-        return False
-
-    result = response.json()
-
-    print("PIN ERFOLGREICH ERSTELLT")
-    print("Pin-ID:", result.get("id"))
-
-    return True
+def save_history(history):
+    with open(HISTORY_FILE, "w", encoding="utf-8") as file:
+        json.dump(history, file, ensure_ascii=False, indent=2)
 
 
 def main():
     products = load_products()
+    history = load_history()
 
-    if not products:
-        print("Keine Produkte vorhanden.")
-        return
+    print("================================")
+    print("      TABELLENHELD PIN AGENT")
+    print("================================")
+    print()
+
+    print(f"Produkte gefunden: {len(products)}")
+    print(f"Bisherige Pins: {len(history)}")
+    print()
 
     for product in products:
-        print()
-        print("Verarbeite:", product.get("title"))
+        title = product.get("title", "Unbekanntes Produkt")
 
-        try:
-            create_pin(product)
-        except Exception as error:
-            print("Fehler:", error)
+        print("Produkt:", title)
+        print("→ Pin-Idee wird vorbereitet")
+        print("→ Beschreibung wird vorbereitet")
+        print("→ Bild wird vorbereitet")
+        print()
+
+    save_history(history)
+
+    print("Agent erfolgreich ausgeführt.")
 
 
 if __name__ == "__main__":
