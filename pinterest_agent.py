@@ -7,6 +7,75 @@ HISTORY_FILE = Path("pin_history.json")
 OUTPUT_DIR = Path("generated_pins")
 
 
+PRODUCT_THEMES = {
+    "Life, Family & Social Media Organizer": {
+        "topics": [
+            "Familienplanung leicht gemacht",
+            "Mehr Ordnung im Familienalltag",
+            "Wochenplanung für die ganze Familie",
+            "Social Media besser organisieren",
+            "Mehr Zeit durch gute Planung"
+        ],
+        "tagline": "Dein Alltag. Deine Planung. Deine Übersicht."
+    },
+
+    "Business & Handwerker-Paket": {
+        "topics": [
+            "Aufträge übersichtlich organisieren",
+            "Mehr Ordnung im Arbeitsalltag",
+            "Kunden und Projekte im Blick behalten",
+            "Effizienter planen im Handwerk",
+            "Business einfach organisieren"
+        ],
+        "tagline": "Mehr Übersicht. Weniger Chaos. Mehr Zeit."
+    },
+
+    "Excel-Wissens-Paket": {
+        "topics": [
+            "Excel endlich verstehen",
+            "5 Excel-Tipps für Einsteiger",
+            "Formeln einfach erklärt",
+            "Excel-Tabellen richtig aufbauen",
+            "Mehr aus Excel herausholen"
+        ],
+        "tagline": "Excel verstehen. Sicher anwenden."
+    },
+
+    "Ultimate Planning & Life Bundle": {
+        "topics": [
+            "Deine Ziele endlich planen",
+            "Mehr Struktur im Alltag",
+            "Monatsplanung leicht gemacht",
+            "Gewohnheiten und Ziele im Blick",
+            "Das Leben besser organisieren"
+        ],
+        "tagline": "Plane dein Leben. Erreiche deine Ziele."
+    },
+
+    "Business & Freelancer Starter-Kit": {
+        "topics": [
+            "Selbstständig besser organisiert",
+            "Kunden und Projekte im Griff",
+            "Freelancer-Aufgaben clever planen",
+            "Mehr Struktur im Business",
+            "Business-Organisation leicht gemacht"
+        ],
+        "tagline": "Starte organisiert. Arbeite professionell."
+    },
+
+    "Excel Masterclass & Templates Bundle": {
+        "topics": [
+            "Excel professionell nutzen",
+            "Praktische Excel-Vorlagen",
+            "Excel im Business effizient einsetzen",
+            "Mehr Produktivität mit Excel",
+            "Excel-Funktionen clever nutzen"
+        ],
+        "tagline": "Mehr Wissen. Mehr Vorlagen. Mehr Excel."
+    }
+}
+
+
 def load_products():
     with open(PRODUCT_FILE, "r", encoding="utf-8") as file:
         return json.load(file)
@@ -34,82 +103,104 @@ def save_history(history):
         json.dump(history, file, ensure_ascii=False, indent=2)
 
 
+def find_theme(product_title):
+    for key, theme in PRODUCT_THEMES.items():
+        if key.lower() in product_title.lower():
+            return theme
+
+    return {
+        "topics": [
+            "Mehr Ordnung und Übersicht im Alltag",
+            "Praktische Tipps für deine Planung",
+            "Einfacher organisieren und mehr erreichen"
+        ],
+        "tagline": "Einfach besser organisiert."
+    }
+
+
 def create_pin(product, number):
     title = product["title"]
     shop_url = product["shop_url"]
 
-    ideas = [
-        f"{title} – einfach erklärt für Einsteiger",
-        f"{title} – 7 Tipps, die du kennen solltest",
-        f"{title} – Excel endlich richtig verstehen",
-        f"{title} – praktische Hilfe für deinen Excel-Alltag",
-        f"{title} – von der ersten Tabelle bis zur Auswertung",
-        f"{title} – Excel Schritt für Schritt lernen",
-        f"{title} – mehr Sicherheit bei Excel",
-        f"{title} – praktische Excel-Tipps für Anfänger",
-        f"{title} – so wirst du sicherer in Excel",
-        f"{title} – dein praktischer Excel-Ratgeber"
-    ]
+    theme = find_theme(title)
+    topics = theme["topics"]
 
-    descriptions = [
-        f"Du möchtest Excel besser verstehen? {title} zeigt dir verständlich und praxisnah, wie du Excel sicherer einsetzen kannst.",
-        f"Excel muss nicht kompliziert sein. Mit {title} lernst du wichtige Grundlagen und praktische Anwendungen Schritt für Schritt kennen.",
-        f"Mehr Sicherheit in Excel: {title} erklärt wichtige Funktionen, Tabellen und praktische Beispiele verständlich und übersichtlich.",
-        f"Du möchtest mehr aus Excel herausholen? Entdecke {title} und lerne Excel mit verständlichen Erklärungen und praktischen Beispielen.",
-        f"Der praktische Einstieg in Excel: {title} hilft dir dabei, Tabellen, Formeln und Auswertungen besser zu verstehen."
-    ]
+    topic = topics[number % len(topics)]
+
+    pin_title = f"{topic} | {title}"
+
+    description = (
+        f"{topic}: Entdecke {title} und bringe mehr Struktur, Übersicht "
+        f"und Effizienz in deinen Alltag. Praktische Lösungen, hilfreiche "
+        f"Vorlagen und verständliche Planung für mehr Ordnung. "
+        f"Jetzt entdecken."
+    )
 
     return {
-        "title": ideas[number % len(ideas)],
-        "description": descriptions[number % len(descriptions)],
-        "shop_url": shop_url
+        "title": pin_title,
+        "description": description,
+        "shop_url": shop_url,
+        "topic": topic,
+        "tagline": theme["tagline"]
     }
 
 
 def get_font(size, bold=False):
-    paths = [
+    font_path = (
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-        if bold else
+        if bold
+        else
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-    ]
+    )
 
-    for path in paths:
-        if Path(path).exists():
-            return ImageFont.truetype(path, size)
+    if Path(font_path).exists():
+        return ImageFont.truetype(font_path, size)
 
     return ImageFont.load_default()
 
 
-def create_image(pin, filename):
+def create_image(pin, filename, product_number):
     width = 1000
     height = 1500
 
     image = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(image)
 
-    title_font = get_font(62, True)
-    subtitle_font = get_font(42, False)
-    small_font = get_font(30, False)
+    title_font = get_font(58, True)
+    subtitle_font = get_font(40, False)
+    small_font = get_font(28, False)
+    logo_font = get_font(48, True)
 
     # Kopfbereich
-    draw.rectangle((0, 0, width, 300), fill=(25, 35, 45))
+    draw.rectangle(
+        (0, 0, width, 300),
+        fill=(25, 35, 45)
+    )
 
     draw.text(
-        (70, 65),
+        (65, 60),
         "TABELLENHELD",
-        font=get_font(48, True),
+        font=logo_font,
         fill="white"
     )
 
     draw.text(
-        (70, 150),
-        "Excel • Vorlagen • Ratgeber",
+        (65, 145),
+        "ORGANISATION • EXCEL • BUSINESS",
         font=small_font,
         fill="white"
     )
 
-    # Haupttitel
-    title = pin["title"]
+    # Produktnummer
+    draw.text(
+        (800, 70),
+        f"#{product_number}",
+        font=small_font,
+        fill="white"
+    )
+
+    # Titel
+    title = pin["topic"]
 
     words = title.split()
     lines = []
@@ -118,7 +209,11 @@ def create_image(pin, filename):
     for word in words:
         test = current + " " + word if current else word
 
-        if draw.textbbox((0, 0), test, font=title_font)[2] <= 860:
+        if draw.textbbox(
+            (0, 0),
+            test,
+            font=title_font
+        )[2] <= 850:
             current = test
         else:
             lines.append(current)
@@ -127,7 +222,7 @@ def create_image(pin, filename):
     if current:
         lines.append(current)
 
-    y = 430
+    y = 450
 
     for line in lines[:5]:
         draw.text(
@@ -139,33 +234,70 @@ def create_image(pin, filename):
         y += 85
 
     # Trennlinie
-    draw.rectangle((70, y + 40, 930, y + 48), fill=(25, 35, 45))
-
-    # Hinweis
-    draw.text(
-        (70, y + 100),
-        "Jetzt Excel einfacher verstehen",
-        font=subtitle_font,
-        fill=(55, 65, 75)
+    draw.rectangle(
+        (70, y + 35, 930, y + 43),
+        fill=(25, 35, 45)
     )
 
-    # Call-to-Action
+    # Produktname
+    product_name = pin["title"].split("|")[-1].strip()
+
+    words = product_name.split()
+    lines = []
+    current = ""
+
+    for word in words:
+        test = current + " " + word if current else word
+
+        if draw.textbbox(
+            (0, 0),
+            test,
+            font=subtitle_font
+        )[2] <= 850:
+            current = test
+        else:
+            lines.append(current)
+            current = word
+
+    if current:
+        lines.append(current)
+
+    y += 100
+
+    for line in lines[:4]:
+        draw.text(
+            (70, y),
+            line,
+            font=subtitle_font,
+            fill=(70, 80, 90)
+        )
+        y += 58
+
+    # Claim
+    draw.text(
+        (70, 900),
+        pin["tagline"],
+        font=subtitle_font,
+        fill=(25, 35, 45)
+    )
+
+    # CTA
     draw.rounded_rectangle(
-        (70, 1180, 930, 1310),
+        (70, 1130, 930, 1260),
         radius=30,
         fill=(25, 35, 45)
     )
 
     draw.text(
-        (250, 1215),
+        (260, 1165),
         "JETZT ENTDECKEN",
-        font=get_font(42, True),
+        font=get_font(40, True),
         fill="white"
     )
 
-    # URL
+    # Shop-Link
     draw.text(
-        (70, 1380),
+        (70, 1365),
         pin["shop_url"],
         font=small_font,
         fill=(70, 70, 70)
@@ -184,7 +316,7 @@ def main():
     print("     TABELLENHELD PIN AGENT")
     print("================================")
 
-    for product in products:
+    for index, product in enumerate(products, start=1):
 
         pin_number = len(history)
 
@@ -192,11 +324,21 @@ def main():
 
         filename = OUTPUT_DIR / f"pin_{pin_number + 1}.png"
 
-        create_image(pin, filename)
+        create_image(
+            pin,
+            filename,
+            index
+        )
 
         print()
         print("NEUER PIN")
         print("------------------------------")
+        print("Produkt:")
+        print(product["title"])
+        print()
+        print("Thema:")
+        print(pin["topic"])
+        print()
         print("Titel:")
         print(pin["title"])
         print()
@@ -212,13 +354,15 @@ def main():
 
         history.append({
             **pin,
+            "product": product["title"],
             "image": str(filename)
         })
 
     save_history(history)
 
     print()
-    print("Bild erfolgreich erstellt.")
+    print(f"{len(products)} Produkte verarbeitet.")
+    print("Neue Pin-Ideen und Bilder erstellt.")
     print("Pin-Verlauf gespeichert.")
 
 
