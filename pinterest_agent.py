@@ -1,10 +1,20 @@
 import json
+import os
+import base64
 from pathlib import Path
+
+import requests
 from PIL import Image, ImageDraw, ImageFont
+
 
 PRODUCT_FILE = Path("products.json")
 HISTORY_FILE = Path("pin_history.json")
 OUTPUT_DIR = Path("generated_pins")
+
+PINTEREST_API = "https://api.pinterest.com/v5"
+
+PINTEREST_ACCESS_TOKEN = os.environ.get("PINTEREST_ACCESS_TOKEN")
+PINTEREST_BOARD_ID = os.environ.get("PINTEREST_BOARD_ID")
 
 
 PRODUCT_THEMES = {
@@ -171,7 +181,6 @@ def create_image(pin, filename, product_number):
     small_font = get_font(28, False)
     logo_font = get_font(48, True)
 
-    # Kopfbereich
     draw.rectangle(
         (0, 0, width, 300),
         fill=(25, 35, 45)
@@ -191,7 +200,6 @@ def create_image(pin, filename, product_number):
         fill="white"
     )
 
-    # Produktnummer
     draw.text(
         (800, 70),
         f"#{product_number}",
@@ -199,7 +207,6 @@ def create_image(pin, filename, product_number):
         fill="white"
     )
 
-    # Titel
     title = pin["topic"]
 
     words = title.split()
@@ -233,13 +240,11 @@ def create_image(pin, filename, product_number):
         )
         y += 85
 
-    # Trennlinie
     draw.rectangle(
         (70, y + 35, 930, y + 43),
         fill=(25, 35, 45)
     )
 
-    # Produktname
     product_name = pin["title"].split("|")[-1].strip()
 
     words = product_name.split()
@@ -273,7 +278,6 @@ def create_image(pin, filename, product_number):
         )
         y += 58
 
-    # Claim
     draw.text(
         (70, 900),
         pin["tagline"],
@@ -281,7 +285,6 @@ def create_image(pin, filename, product_number):
         fill=(25, 35, 45)
     )
 
-    # CTA
     draw.rounded_rectangle(
         (70, 1130, 930, 1260),
         radius=30,
@@ -295,7 +298,6 @@ def create_image(pin, filename, product_number):
         fill="white"
     )
 
-    # Shop-Link
     draw.text(
         (70, 1365),
         pin["shop_url"],
@@ -304,6 +306,65 @@ def create_image(pin, filename, product_number):
     )
 
     image.save(filename, "PNG")
+
+
+def publish_to_pinterest(pin, image_path):
+    if not PINTEREST_ACCESS_TOKEN:
+        raise RuntimeError(
+            "PINTEREST_ACCESS_TOKEN fehlt in den GitHub Secrets."
+        )
+
+    if not PINTEREST_BOARD_ID:
+        raise RuntimeError(
+            "PINTEREST_BOARD_ID fehlt in den GitHub Secrets."
+        )
+
+    with open(image_path, "rb") as image_file:
+        image_bytes = image_file.read()
+
+    image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+
+    payload = {
+        "board_id": PINTEREST_BOARD_ID,
+        "title": pin["title"][:100],
+        "description": pin["description"][:800],
+        "link": pin["shop_url"],
+        "media_source": {
+            "source_type": "image_base64",
+            "content_type": "image/png",
+            "data": image_base64
+        }
+    }
+
+    response = requests.post(
+        f"{PINTEREST_API}/pins",
+        headers={
+            "Authorization": f"Bearer {PINTEREST_ACCESS_TOKEN}",
+            "Content-Type": "application/json"
+        },
+        json=payload,
+        timeout=60
+    )
+
+    print()
+    print("PINTEREST ANTWORT")
+    print("------------------------------")
+    print("Status:", response.status_code)
+
+    try:
+        result = response.json()
+        print(result)
+    except Exception:
+        print(response.text)
+        result = {}
+
+    if response.status_code not in (200, 201):
+        raise RuntimeError(
+            f"Pinterest Pin konnte nicht erstellt werden. "
+            f"HTTP {response.status_code}: {response.text}"
+        )
+
+    return result
 
 
 def main():
@@ -315,6 +376,10 @@ def main():
     print("================================")
     print("     TABELLENHELD PIN AGENT")
     print("================================")
+
+    print()
+    print(f"Produkte: {len(products)}")
+    print(f"Pinterest Board: {PINTEREST_BOARD_ID}")
 
     for index, product in enumerate(products, start=1):
 
@@ -352,18 +417,42 @@ def main():
         print(filename)
         print("------------------------------")
 
-        history.append({
-            **pin,
-            "product": product["title"],
-            "image": str(filename)
-        })
+        try:
+            pinterest_result = publish_to_pinterest(
+                pin,
+                filename
+            )
+
+            pinterest_pin_id = pinterest_result.get("id")
+
+            print()
+            print("✅ PIN ERFOLGREICH AUF PINTEREST VERÖFFENTLICHT")
+            print("Pinterest Pin ID:", pinterest_pin_id)
+
+            history.append({
+                **pin,
+                "product": product["title"],
+                "image": str(filename),
+                "pinterest_pin_id": pinterest_pin_id
+            })
+
+        except Exception as error:
+            print()
+            print("❌ PIN NICHT VERÖFFENTLICHT")
+            print(str(error))
+
+            # Der Verlauf wird nur gespeichert,
+            # wenn Pinterest den Pin tatsächlich angenommen hat.
+            continue
 
     save_history(history)
 
     print()
+    print("================================")
+    print("FERTIG")
+    print("================================")
     print(f"{len(products)} Produkte verarbeitet.")
-    print("Neue Pin-Ideen und Bilder erstellt.")
-    print("Pin-Verlauf gespeichert.")
+    print(f"{len(history)} Pins im Verlauf gespeichert.")
 
 
 if __name__ == "__main__":
