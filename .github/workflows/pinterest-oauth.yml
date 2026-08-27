@@ -55,3 +55,9 @@ jobs:
         run: |
           echo "OAuth-Token wurde erfolgreich erzeugt."
           echo "Die vier benötigten Berechtigungen wurden bereits bestätigt."
+      - name: Token sicher bereitstellen
+        uses: actions/upload-artifact@v4
+        with:
+          name: pinterest-token
+          path: /tmp/pinterest_token
+          retention-days: 1
