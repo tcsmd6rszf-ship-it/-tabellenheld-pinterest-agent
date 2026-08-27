@@ -1,8 +1,6 @@
 name: TabellenHeld Pinterest Agent
 
 on:
-  schedule:
-    - cron: "0 8 * * *"
   workflow_dispatch:
 
 jobs:
@@ -23,8 +21,34 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests Pillow
 
-      - name: Pinterest Agent starten
+      - name: Pinterest Boards testen
         env:
           PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
-          PINTEREST_BOARD_ID: ${{ secrets.PINTEREST_BOARD_ID }}
-        run: python pinterest_agent.py
+        run: |
+          python - <<'PY'
+          import os
+          import requests
+
+          token = os.environ["PINTEREST_ACCESS_TOKEN"]
+
+          response = requests.get(
+              "https://api.pinterest.com/v5/boards",
+              headers={
+                  "Authorization": f"Bearer {token}"
+              }
+          )
+
+          print("================================")
+          print("   PINTEREST BOARD TEST")
+          print("================================")
+          print("Status:", response.status_code)
+          print()
+
+          try:
+              data = response.json()
+              print(data)
+          except Exception:
+              print(response.text)
+
+          if response.status_code != 200:
+              raise SystemExit("Pinterest API Fehler")
