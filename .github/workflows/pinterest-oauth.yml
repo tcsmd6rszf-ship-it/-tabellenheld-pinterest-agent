@@ -1,0 +1,46 @@
+name: Pinterest OAuth Token
+
+on:
+  workflow_dispatch:
+
+jobs:
+  oauth:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Pinterest OAuth Token erzeugen
+        env:
+          PINTEREST_APP_ID: ${{ secrets.PINTEREST_APP_ID }}
+          PINTEREST_APP_SECRET: ${{ secrets.PINTEREST_APP_SECRET }}
+          PINTEREST_OAUTH_CODE: ${{ secrets.PINTEREST_OAUTH_CODE }}
+        run: |
+          RESPONSE=$(curl -s -X POST "https://api.pinterest.com/v5/oauth/token" \
+            -u "${PINTEREST_APP_ID}:${PINTEREST_APP_SECRET}" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            --data-urlencode "grant_type=authorization_code" \
+            --data-urlencode "code=${PINTEREST_OAUTH_CODE}" \
+            --data-urlencode "redirect_uri=https://localhost/")
+
+          echo "$RESPONSE" > response.json
+
+          python - <<'PY'
+          import json
+
+          with open("response.json", "r") as f:
+              data = json.load(f)
+
+          if "access_token" not in data:
+              print("FEHLER:")
+              print(data)
+              raise SystemExit(1)
+
+          print("OAuth erfolgreich.")
+          print("Erteilte Berechtigungen:")
+          print(data.get("scope"))
+          print()
+          print("Access Token wurde NICHT ausgegeben.")
+          print("Refresh Token wurde NICHT ausgegeben.")
+
+          with open("oauth_result.txt", "w") as f:
+              f.write(data["access_token"])
+          PY
