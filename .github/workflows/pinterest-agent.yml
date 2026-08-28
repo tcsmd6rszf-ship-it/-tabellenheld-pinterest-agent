@@ -1,30 +1,68 @@
 name: TabellenHeld Pinterest Agent
-
 on:
   schedule:
     - cron: "0 8 * * *"
   workflow_dispatch:
-
 jobs:
   pinterest-agent:
     runs-on: ubuntu-latest
-
     steps:
       - name: Repository laden
         uses: actions/checkout@v4
-
       - name: Python einrichten
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
       - name: Abhängigkeiten installieren
         run: |
           python -m pip install --upgrade pip
           pip install requests Pillow
-
+      - name: Pinterest Access Token automatisch erneuern
+        env:
+          PINTEREST_APP_ID: ${{ secrets.PINTEREST_APP_ID }}
+          PINTEREST_APP_SECRET: ${{ secrets.PINTEREST_APP_SECRET }}
+          PINTEREST_REFRESH_TOKEN: ${{ secrets.PINTEREST_REFRESH_TOKEN }}
+        run: |
+          set -e
+          if [ -z "$PINTEREST_REFRESH_TOKEN" ]; then
+            echo "FEHLER: PINTEREST_REFRESH_TOKEN fehlt."
+            exit 1
+          fi
+          RESPONSE=$(curl -sS -X POST \
+            "https://api.pinterest.com/v5/oauth/token" \
+            -u "${PINTEREST_APP_ID}:${PINTEREST_APP_SECRET}" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            --data-urlencode "grant_type=refresh_token" \
+            --data-urlencode "refresh_token=${PINTEREST_REFRESH_TOKEN}")
+          echo "$RESPONSE" > pinterest_refresh_response.json
+          python - <<'PY'
+          import json
+          import sys
+          with open(
+              "pinterest_refresh_response.json",
+              "r",
+              encoding="utf-8"
+          ) as f:
+              data = json.load(f)
+          if "access_token" not in data:
+              print("FEHLER: Pinterest konnte den Access Token nicht erneuern.")
+              print(data)
+              sys.exit(1)
+          access_token = data["access_token"]
+          with open(
+              "pinterest_access_token.txt",
+              "w",
+              encoding="utf-8"
+          ) as f:
+              f.write(access_token)
+          print("Pinterest Access Token erfolgreich erneuert.")
+          print("Berechtigungen:", data.get("scope"))
+          PY
+          ACCESS_TOKEN=$(cat pinterest_access_token.txt)
+          echo "::add-mask::$ACCESS_TOKEN"
       - name: Pinterest Agent starten
         env:
-          PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
           PINTEREST_BOARD_ID: ${{ secrets.PINTEREST_BOARD_ID }}
-        run: python pinterest_agent.py
+        run: |
+          export PINTEREST_ACCESS_TOKEN="$(cat pinterest_access_token.txt)"
+          python pinterest_agent.py
