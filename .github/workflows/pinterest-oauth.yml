@@ -25,7 +25,7 @@ jobs:
 
           python - <<'PY'
           import json
-          import os
+          import sys
 
           with open("response.json", "r") as f:
               data = json.load(f)
@@ -33,24 +33,35 @@ jobs:
           if "access_token" not in data:
               print("FEHLER:")
               print(data)
-              raise SystemExit(1)
+              sys.exit(1)
 
-          token = data["access_token"]
+          access_token = data["access_token"]
+          refresh_token = data.get("refresh_token")
+
+          if not refresh_token:
+              print("FEHLER: Kein Refresh Token erhalten.")
+              sys.exit(1)
 
           print("OAuth erfolgreich.")
           print("Berechtigungen:")
           print(data.get("scope"))
-          print("Token wurde erfolgreich erzeugt.")
+          print("Access Token und Refresh Token wurden erzeugt.")
 
           with open("pinterest_access_token.txt", "w") as f:
-              f.write(token)
+              f.write(access_token)
+
+          with open("pinterest_refresh_token.txt", "w") as f:
+              f.write(refresh_token)
           PY
 
           echo "::add-mask::$(cat pinterest_access_token.txt)"
+          echo "::add-mask::$(cat pinterest_refresh_token.txt)"
 
-      - name: Token als Artifact speichern
+      - name: Token-Dateien als Artifact speichern
         uses: actions/upload-artifact@v4
         with:
-          name: pinterest-access-token
-          path: pinterest_access_token.txt
+          name: pinterest-tokens
+          path: |
+            pinterest_access_token.txt
+            pinterest_refresh_token.txt
           retention-days: 1
