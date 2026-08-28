@@ -21,11 +21,14 @@ jobs:
             --data-urlencode "code=${PINTEREST_OAUTH_CODE}" \
             --data-urlencode "redirect_uri=https://localhost/")
 
-          python - "$RESPONSE" <<'PY'
-          import sys
-          import json
+          echo "$RESPONSE" > response.json
 
-          data = json.loads(sys.argv[1])
+          python - <<'PY'
+          import json
+          import os
+
+          with open("response.json", "r") as f:
+              data = json.load(f)
 
           if "access_token" not in data:
               print("FEHLER:")
@@ -35,29 +38,19 @@ jobs:
           token = data["access_token"]
 
           print("OAuth erfolgreich.")
-          print("Berechtigungen:", data.get("scope"))
-          print("Token erfolgreich erzeugt.")
-          print("Token wird nicht angezeigt.")
+          print("Berechtigungen:")
+          print(data.get("scope"))
+          print("Token wurde erfolgreich erzeugt.")
 
-          # GitHub maskiert den Token zusätzlich
-          print(f"::add-mask::{token}")
-
-          # Token als Workflow-Output weitergeben
-          with open("/tmp/pinterest_token", "w") as f:
+          with open("pinterest_access_token.txt", "w") as f:
               f.write(token)
           PY
 
-      - name: Pinterest Token testen
-        env:
-          PINTEREST_APP_ID: ${{ secrets.PINTEREST_APP_ID }}
-          PINTEREST_APP_SECRET: ${{ secrets.PINTEREST_APP_SECRET }}
-          PINTEREST_OAUTH_CODE: ${{ secrets.PINTEREST_OAUTH_CODE }}
-        run: |
-          echo "OAuth-Token wurde erfolgreich erzeugt."
-          echo "Die vier benötigten Berechtigungen wurden bereits bestätigt."
-      - name: Token sicher bereitstellen
+          echo "::add-mask::$(cat pinterest_access_token.txt)"
+
+      - name: Token als Artifact speichern
         uses: actions/upload-artifact@v4
         with:
-          name: pinterest-token
-          path: /tmp/pinterest_token
+          name: pinterest-access-token
+          path: pinterest_access_token.txt
           retention-days: 1
