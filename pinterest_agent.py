@@ -11,7 +11,7 @@ PRODUCT_FILE = Path("products.json")
 HISTORY_FILE = Path("pin_history.json")
 OUTPUT_DIR = Path("generated_pins")
 
-PINTEREST_API = "https://api.pinterest.com/v5"
+PINTEREST_API = "https://api-sandbox.pinterest.com/v5"
 
 PINTEREST_ACCESS_TOKEN = os.environ.get("PINTEREST_ACCESS_TOKEN")
 PINTEREST_BOARD_ID = os.environ.get("PINTEREST_BOARD_ID")
